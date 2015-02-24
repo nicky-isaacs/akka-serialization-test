@@ -1,11 +1,7 @@
 package com.example
 
 import java.io.{File, FileOutputStream, FileInputStream}
-
-import com.esotericsoftware.kryo._
-import com.esotericsoftware.kryo.io.{Output, Input}
-import com.example.serializers.NastyCaseClassSerializer
-
+import com.twitter.chill._
 
 object Color {
 
@@ -36,7 +32,8 @@ object KryoTest {
     lastName = "isaacs",
     hasMustache = true,
     mustacheColor = Some(Blue("blue", "AAF3A1")),
-    footSizes = FeetSize(10.5f, 10f)
+    footSizes = FeetSize(10.5f, 10f),
+    additionalField = "hello world"
   )
 
   def main(args: Array[String]) {
@@ -61,7 +58,8 @@ object KryoTest {
       "isaacs",
       true,
       Some(Blue("blue", "AAF3A1")),
-      FeetSize(10.5, 10f)
+      FeetSize(10.5, 10f),
+      "hello world"
     ) =>
       readDidPass
       true
@@ -85,13 +83,13 @@ object KryoTest {
   def writeOutObjectWithKryo(value: Any): Unit = {
     rmOutputFile
     val output = testKryoOutput
-    kryo.writeObject(output, testObject, new NastyCaseClassSerializer)
+    kryo.writeObject(output, testObject)
     output.close
   }
 
   def readInObjectWithKryo: Any = {
     val input = testKryoInput
-    val someObject = kryo.readObject(input, classOf[NastyCaseClass], new NastyCaseClassSerializer)
+    val someObject = kryo.readObject(input, classOf[NastyCaseClass])
     input.close
     someObject
   }
@@ -115,8 +113,6 @@ object KryoTest {
   def ensureOutputFilePresent: Boolean = new File(outputFileLocation).createNewFile
   
   def kryo: Kryo = {
-    val k = new Kryo
-    k.register(NastyCaseClass.getClass, new NastyCaseClassSerializer)
-    k
+    (new ScalaKryoInstantiator).newKryo()
   }
 }
