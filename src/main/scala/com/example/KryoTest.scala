@@ -31,9 +31,9 @@ object KryoTest {
     firstName = "nick",
     lastName = "isaacs",
     hasMustache = true,
-    mustacheColor = Some(Blue("blue", "AAF3A1")),
+    None,
     footSizes = FeetSize(10.5f, 10f),
-    additionalField = "hello world"
+    listOfFriends = Seq("jeff", "andrew", "dan")
   )
 
   def main(args: Array[String]) {
@@ -57,9 +57,9 @@ object KryoTest {
       "nick",
       "isaacs",
       true,
-      Some(Blue("blue", "AAF3A1")),
+      None,
       FeetSize(10.5, 10f),
-      "hello world"
+      friends: Seq[String]
     ) =>
       readDidPass
       true

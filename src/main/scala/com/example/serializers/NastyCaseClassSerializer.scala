@@ -14,7 +14,7 @@ class NastyCaseClassSerializer extends Serializer[NastyCaseClass] {
     output.writeString(`object`.mustacheColor.fold("")(_.name))
     output.writeFloat(`object`.footSizes.leftFoot)
     output.writeFloat(`object`.footSizes.rightFoot)
-    output.writeString(`object`.additionalField)
+    `object`.listOfFriends.map(output.writeString)
   }
 
   override def read(kryo: Kryo, input: Input, `type`: Class[NastyCaseClass]): NastyCaseClass = {
@@ -27,7 +27,7 @@ class NastyCaseClassSerializer extends Serializer[NastyCaseClass] {
         input.readFloat,
         input.readFloat
       ),
-      input.readString
+      Nil
     )
   }
 }

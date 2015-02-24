@@ -6,5 +6,5 @@ case class NastyCaseClass(
                            hasMustache: Boolean,
                            mustacheColor: Option[Color],
                            footSizes: FeetSize,
-                           additionalField: String
+                           listOfFriends: Seq[String]
                            )
