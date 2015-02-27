@@ -1,29 +1,18 @@
 package com.example
 
 import java.io.{File, FileOutputStream, FileInputStream}
+import com.example.thrift_helper.{Writer, Reader}
+import com.twitter.bijection.scrooge.BinaryScalaCodec
 import com.twitter.chill._
+import victorops.thrift.scala._
 
-object Color {
+import scala.util.Success
 
-  def apply(name: String): Color = name match {
-    case "blue" => Blue()
-    case "green" => Green()
-    case "yellow" => Yellow()
-  }
-
-}
-
-trait Color {
-  def name: String
-  def hexVal: String
-}
 case class Blue(name: String = "blue", hexVal: String = "AAF3A1") extends Color
 case class Green(name: String = "green", hexVal: String = "0732A1") extends Color
 case class Yellow(name: String = "yellow", hexVal: String = "CC1433") extends Color
 
-case class FeetSize(leftFoot: Float, rightFoot: Float)
-
-object KryoTest {
+object SerializerTest {
 
   val outputFileLocation = System.getProperty("user.home") + File.separator + "test.txt"
 
@@ -32,16 +21,17 @@ object KryoTest {
     lastName = "isaacs",
     hasMustache = true,
     None,
-    footSizes = FeetSize(10.5f, 10f),
-    listOfFriends = Seq("jeff", "andrew", "dan")
+    FeetSize(10.5, 10),
+    Seq("jeff", "andrew", "dan"),
+    true
   )
 
   def main(args: Array[String]) {
     if (args.contains("read")) {
-      testRead
+      testRead()
     } else if (args.contains("write")) {
-      testWrite
-    } else testReadAndWrite
+      testWrite()
+    } else testReadAndWrite()
   }
   
   def readDidPass(): Unit = println("Successfully read data back in")
@@ -52,51 +42,61 @@ object KryoTest {
 
   def writeDidFail(): Unit = println("Failed to write out data")
 
-  def testRead(): Boolean = readInObjectWithKryo match {
-    case NastyCaseClass(
+  def testRead(): Boolean = readInTestObjectWithThrift match {
+    case Success(a@NastyCaseClass(
       "nick",
       "isaacs",
       true,
       None,
       FeetSize(10.5, 10f),
-      friends: Seq[String]
-    ) =>
-      readDidPass
+      friends: Seq[String],
+      _
+    )) =>
+      println(a)
+      readDidPass()
       true
     case x =>
       println(s"Read back in: $x")
-      readDidFail
+      readDidFail()
       false
   }
 
 
-  def testWrite(): Boolean = writeOutObjectWithKryo(testObject) match {
-    case _ =>
-      writeDidPass
-      true
-  }
+  def testWrite(): Boolean = writeOutObjectWithThrift.map{ case _ =>
+    writeDidPass()
+  }.isSuccess
+  
 
   def testReadAndWrite(): Unit = {
     if (testWrite) testRead
   }
 
+  def writeOutObjectWithThrift = {
+    val codec = BinaryScalaCodec(NastyCaseClass)
+    Writer(new File(outputFileLocation), NastyCaseClass).write(testObject)
+  }
+
+  def readInTestObjectWithThrift = {
+    Reader(new File(outputFileLocation), NastyCaseClass).read
+  }
+
   def writeOutObjectWithKryo(value: Any): Unit = {
     rmOutputFile
-    val output = testKryoOutput
+    val output = testOutput
     kryo.writeObject(output, testObject)
-    output.close
+    output.close()
   }
 
   def readInObjectWithKryo: Any = {
-    val input = testKryoInput
+    val input = testInput
     val someObject = kryo.readObject(input, classOf[NastyCaseClass])
-    input.close
+    input.close()
     someObject
   }
 
-  def testKryoInput: Input = new Input(testFileInputStream)
+  def testInput: Input = new Input(testFileInputStream)
 
-  def testKryoOutput: Output = new Output(testFileOutputStream)
+  def testOutput: Output = new Output(testFileOutputStream)
 
   def testFileInputStream: FileInputStream = {
     ensureOutputFilePresent
