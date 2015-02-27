@@ -1,118 +1,67 @@
 package com.example
 
-import java.io.{File, FileOutputStream, FileInputStream}
-import com.example.thrift_helper.{Writer, Reader}
-import com.twitter.bijection.scrooge.BinaryScalaCodec
-import com.twitter.chill._
-import victorops.thrift.scala._
+import java.io.File
+import akka.actor.{Props, ActorSystem}
+import com.example.actors.SerializationValidationActor
+import com.typesafe.config.{ConfigFactory, Config}
+import victorops.thrift.scala.{Color, NastyCaseClass, FeetSize}
+import scala.collection.immutable.IndexedSeq
+import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+import akka.util.Timeout
+import akka.pattern.ask
 
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 case class Blue(name: String = "blue", hexVal: String = "AAF3A1") extends Color
 case class Green(name: String = "green", hexVal: String = "0732A1") extends Color
 case class Yellow(name: String = "yellow", hexVal: String = "CC1433") extends Color
 
 object SerializerTest {
+  
+  // Timeout for actor asks
+  implicit val timeout = Timeout(5 seconds)
 
   val outputFileLocation = System.getProperty("user.home") + File.separator + "test.txt"
 
+  val blue: Blue = Blue()
+  
   val testObject = NastyCaseClass(
     firstName = "nick",
     lastName = "isaacs",
     hasMustache = true,
-    None,
+    Some(blue),
     FeetSize(10.5, 10),
     Seq("jeff", "andrew", "dan"),
     true
   )
 
-  def main(args: Array[String]) {
-    if (args.contains("read")) {
-      testRead()
-    } else if (args.contains("write")) {
-      testWrite()
-    } else testReadAndWrite()
+  private val config: Config = ConfigFactory.defaultReference()
+
+  val serializationActorSystem = ActorSystem("SerializationSystem", config)
+
+  def main(args: Array[String]): Unit = {
+    val cleanup = () => serializationActorSystem.terminate()
+    val actors = (1 until 5).map(_ => buildValidationActor(serializationActorSystem))
+    
+    val futures = actors.map{ ref => ref ? testObject }
+
+    val eventualSeq: Future[IndexedSeq[Any]] = Future.sequence(futures)
+    eventualSeq.onComplete{
+      case Success(a) =>
+        a.map(handleSuccessfulActorResponse)
+
+      case Failure(t) =>
+        handleFailedActorResponse(t)
+    }
+    eventualSeq.flatMap( _ => cleanup() )
   }
+
+  def buildValidationActor(system: ActorSystem) = system.actorOf(Props[SerializationValidationActor])
   
-  def readDidPass(): Unit = println("Successfully read data back in")
-
-  def readDidFail(): Unit = println("Failed to read data back in")
-
-  def writeDidPass(): Unit = println("Successfully wrote out data")
-
-  def writeDidFail(): Unit = println("Failed to write out data")
-
-  def testRead(): Boolean = readInTestObjectWithThrift match {
-    case Success(a@NastyCaseClass(
-      "nick",
-      "isaacs",
-      true,
-      None,
-      FeetSize(10.5, 10f),
-      friends: Seq[String],
-      _
-    )) =>
-      println(a)
-      readDidPass()
-      true
-    case x =>
-      println(s"Read back in: $x")
-      readDidFail()
-      false
-  }
-
-
-  def testWrite(): Boolean = writeOutObjectWithThrift.map{ case _ =>
-    writeDidPass()
-  }.isSuccess
+  def handleSuccessfulActorResponse(a: Any) = println(s"Successful actor response: $a\n")
   
-
-  def testReadAndWrite(): Unit = {
-    if (testWrite) testRead
-  }
-
-  def writeOutObjectWithThrift = {
-    val codec = BinaryScalaCodec(NastyCaseClass)
-    Writer(new File(outputFileLocation), NastyCaseClass).write(testObject)
-  }
-
-  def readInTestObjectWithThrift = {
-    Reader(new File(outputFileLocation), NastyCaseClass).read
-  }
-
-  def writeOutObjectWithKryo(value: Any): Unit = {
-    rmOutputFile
-    val output = testOutput
-    kryo.writeObject(output, testObject)
-    output.close()
-  }
-
-  def readInObjectWithKryo: Any = {
-    val input = testInput
-    val someObject = kryo.readObject(input, classOf[NastyCaseClass])
-    input.close()
-    someObject
-  }
-
-  def testInput: Input = new Input(testFileInputStream)
-
-  def testOutput: Output = new Output(testFileOutputStream)
-
-  def testFileInputStream: FileInputStream = {
-    ensureOutputFilePresent
-    new FileInputStream(outputFileLocation)
-  }
+  def handleFailedActorResponse(a: Any) = println(s"Failed actor response: $a\n")
   
-  def testFileOutputStream: FileOutputStream = {
-    ensureOutputFilePresent
-    new FileOutputStream(outputFileLocation)
-  }
-  
-  def rmOutputFile = new File(outputFileLocation).delete()
-  
-  def ensureOutputFilePresent: Boolean = new File(outputFileLocation).createNewFile
-  
-  def kryo: Kryo = {
-    (new ScalaKryoInstantiator).newKryo()
-  }
 }
