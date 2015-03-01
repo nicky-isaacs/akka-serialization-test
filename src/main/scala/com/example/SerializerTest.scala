@@ -3,6 +3,7 @@ package com.example
 import java.io.File
 import akka.actor.{PoisonPill, ActorRef, Props, ActorSystem}
 import akka.persistence.Recover
+import akka.persistence.journal.leveldb.SharedLeveldbStore
 import com.example.actors.{PersistentSerializingActor, SerializationValidationActor}
 import com.typesafe.config.{ConfigFactory, Config}
 import victorops.thrift.scala.{Color, NastyCaseClass, FeetSize}
@@ -35,6 +36,7 @@ object SerializerTest {
   private val config: Config = ConfigFactory.defaultReference()
 
   val serializationActorSystem = ActorSystem("SerializationSystem", config)
+  val store = serializationActorSystem.actorOf(Props[SharedLeveldbStore], "store")
 
   def main(args: Array[String]): Unit = {
     val cleanup = () => serializationActorSystem.terminate()
