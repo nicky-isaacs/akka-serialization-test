@@ -8,6 +8,7 @@ resolvers += "Akka Snapshot Repository" at "http://repo.akka.io/snapshots/"
 resolvers += "jitpack" at "https://jitpack.io"
 
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.4-SNAPSHOT"
+libraryDependencies += "com.typesafe.akka" %% "akka-persistence-experimental" % "2.3.8"
 libraryDependencies += "com.esotericsoftware" % "kryo" % "3.0.0"
 libraryDependencies += "com.twitter" % "chill_2.11" % "0.5.2"
 libraryDependencies += "org.slf4j" % "slf4j-api" % "1.7.10"
