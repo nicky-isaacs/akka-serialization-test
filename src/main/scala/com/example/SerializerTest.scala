@@ -43,7 +43,7 @@ object SerializerTest {
     val persistentActors = Seq(buildPersistentActor(serializationActorSystem, 1))
     
     for {
-      _ <- runValidationActors(validationActors)
+//      _ <- runValidationActors(validationActors)
       _ <- runPersistentActors(persistentActors)
     } yield cleanup()
   }
