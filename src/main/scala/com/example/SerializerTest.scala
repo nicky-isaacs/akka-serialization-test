@@ -6,18 +6,12 @@ import akka.persistence.Recover
 import com.example.actors.{PersistentSerializingActor, SerializationValidationActor}
 import com.typesafe.config.{ConfigFactory, Config}
 import victorops.thrift.scala.{Color, NastyCaseClass, FeetSize}
-import scala.collection.immutable.IndexedSeq
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.util.Timeout
 import akka.pattern.ask
-
 import scala.util.{Failure, Success}
-
-case class Blue(name: String = "blue", hexVal: String = "AAF3A1") extends Color
-case class Green(name: String = "green", hexVal: String = "0732A1") extends Color
-case class Yellow(name: String = "yellow", hexVal: String = "CC1433") extends Color
 
 object SerializerTest {
   
@@ -26,7 +20,7 @@ object SerializerTest {
 
   val outputFileLocation = System.getProperty("user.home") + File.separator + "test.txt"
 
-  val blue: Blue = Blue()
+  val blue = Color("blue",  "AAF3A1")
   
   val testObject = NastyCaseClass(
     firstName = "nick",
