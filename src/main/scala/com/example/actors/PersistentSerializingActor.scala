@@ -1,9 +1,14 @@
 package com.example.actors
 
+import akka.actor.Props
+import akka.persistence.journal.leveldb.{SharedLeveldbJournal, SharedLeveldbStore}
 import akka.persistence.{SnapshotOffer, PersistentActor}
 import victorops.thrift.scala.{Color, NastyCaseClass}
 
 class PersistentSerializingActor extends PersistentActor {
+
+  val store = context.system.actorOf(Props[SharedLeveldbStore], "store")
+  SharedLeveldbJournal.setStore(store, context.system)
 
   // Constant ID means we should always recover from the same snapshot
   override def persistenceId = "sample-id-1"
