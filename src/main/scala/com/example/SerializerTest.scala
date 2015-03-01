@@ -40,7 +40,7 @@ object SerializerTest {
   def main(args: Array[String]): Unit = {
     val cleanup = () => serializationActorSystem.terminate()
     val validationActors = (1 until 5).map(_ => buildValidationActor(serializationActorSystem))
-    val persistentActors = Seq(buildPersistentActor(serializationActorSystem))
+    val persistentActors = Seq(buildPersistentActor(serializationActorSystem, 1))
     
     for {
       _ <- runValidationActors(validationActors)
@@ -72,7 +72,7 @@ object SerializerTest {
       
       // Kill the actor, and create a new one with a recover() signal
       a ! PoisonPill
-      val newActor = buildPersistentActor(serializationActorSystem)
+      val newActor = buildPersistentActor(serializationActorSystem, 2)
       newActor ! Recover()
       
       // Ask for the state, validate we get back what we asked to be snapshot last time
@@ -105,7 +105,7 @@ object SerializerTest {
 
   def buildValidationActor(system: ActorSystem) = system.actorOf(Props[SerializationValidationActor])
 
-  def buildPersistentActor(system: ActorSystem) = system.actorOf(Props[PersistentSerializingActor])
+  def buildPersistentActor(system: ActorSystem, id: Int) = system.actorOf(Props(classOf[PersistentSerializingActor], id))
   
   def handleSuccessfulActorResponse(a: Any) = println(s"Successful actor response: $a\n")
   
