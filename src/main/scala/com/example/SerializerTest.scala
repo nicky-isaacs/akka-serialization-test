@@ -1,8 +1,9 @@
 package com.example
 
 import java.io.File
-import akka.actor.{Props, ActorSystem}
-import com.example.actors.SerializationValidationActor
+import akka.actor.{PoisonPill, ActorRef, Props, ActorSystem}
+import akka.persistence.Recover
+import com.example.actors.{PersistentSerializingActor, SerializationValidationActor}
 import com.typesafe.config.{ConfigFactory, Config}
 import victorops.thrift.scala.{Color, NastyCaseClass, FeetSize}
 import scala.collection.immutable.IndexedSeq
@@ -43,11 +44,19 @@ object SerializerTest {
 
   def main(args: Array[String]): Unit = {
     val cleanup = () => serializationActorSystem.terminate()
-    val actors = (1 until 5).map(_ => buildValidationActor(serializationActorSystem))
+    val validationActors = (1 until 5).map(_ => buildValidationActor(serializationActorSystem))
+    val persistentActors = Seq(buildPersistentActor(serializationActorSystem))
     
+    for {
+      _ <- runValidationActors(validationActors)
+      _ <- runPersistentActors(persistentActors)
+    } yield cleanup()
+  }
+  
+  def runValidationActors(actors: Seq[ActorRef]): Future[Any] = {
     val futures = actors.map{ ref => ref ? testObject }
 
-    val eventualSeq: Future[IndexedSeq[Any]] = Future.sequence(futures)
+    val eventualSeq: Future[Seq[Any]] = Future.sequence(futures)
     eventualSeq.onComplete{
       case Success(a) =>
         a.map(handleSuccessfulActorResponse)
@@ -55,13 +64,55 @@ object SerializerTest {
       case Failure(t) =>
         handleFailedActorResponse(t)
     }
-    eventualSeq.flatMap( _ => cleanup() )
+    eventualSeq
+  }
+  
+  def runPersistentActors(actors: Seq[ActorRef]): Future[Seq[Boolean]] = {
+    
+    // Send lots of tastey messages to the actors and snapshot them
+    val futures = for (a <- actors) yield {
+      val objResponse   = a ! testObject
+      val colorResponse = a ! blue
+      val snapResponse  = a ! "snap"
+      
+      // Kill the actor, and create a new one with a recover() signal
+      a ! PoisonPill
+      val newActor = buildPersistentActor(serializationActorSystem)
+      newActor ! Recover()
+      
+      // Ask for the state, validate we get back what we asked to be snapshot last time
+      (newActor ? "state").collect{
+        case (Some(
+        NastyCaseClass(
+        "nick",
+        "isaacs",
+        true,
+        Some(blue),
+        FeetSize(10.5, 10),
+        Seq("jeff", "andrew", "dan"),
+        true
+        )
+        ),
+        Some(
+          Color("blue", "AAF3A1")
+        )) =>
+          println(s"Succeeded in persisting")
+          true
+
+        case _ =>
+          println(s"Succeeded in persisting")
+          false
+      }
+    }
+    
+    Future.sequence(futures)
   }
 
   def buildValidationActor(system: ActorSystem) = system.actorOf(Props[SerializationValidationActor])
+
+  def buildPersistentActor(system: ActorSystem) = system.actorOf(Props[PersistentSerializingActor])
   
   def handleSuccessfulActorResponse(a: Any) = println(s"Successful actor response: $a\n")
   
   def handleFailedActorResponse(a: Any) = println(s"Failed actor response: $a\n")
-  
 }
