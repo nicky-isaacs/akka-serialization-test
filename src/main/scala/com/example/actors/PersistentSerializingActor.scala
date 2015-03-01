@@ -7,11 +7,11 @@ import victorops.thrift.scala.{Color, NastyCaseClass}
 
 class PersistentSerializingActor(id: Int) extends PersistentActor {
 
-  val store = context.system.actorOf(Props[SharedLeveldbStore], "store1")
+  val store = context.system.actorOf(Props[SharedLeveldbStore], s"store$id")
   SharedLeveldbJournal.setStore(store, context.system)
 
   // Constant ID means we should always recover from the same snapshot
-  override def persistenceId = s"sample-id$id"
+  override def persistenceId = s"sample-id"
   
   // Initialize some state
   var LastSeenNastyCaseClass: Option[NastyCaseClass] = None
